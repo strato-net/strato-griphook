@@ -5,10 +5,12 @@ import { GriphookClient, HttpMethod } from "./client.js";
 import { GriphookConfig } from "./config.js";
 
 function toContent(payload: unknown, label?: string): CallToolResult {
-  const text = label
-    ? `**${label}**\n${JSON.stringify(payload, null, 2)}`
-    : JSON.stringify(payload, null, 2);
-  return { content: [{ type: "text", text }] };
+  const content: CallToolResult["content"] = [];
+  if (label) {
+    content.push({ type: "text", text: `**${label}**` });
+  }
+  content.push({ type: "text", text: JSON.stringify(payload, null, 2) });
+  return { content };
 }
 
 function buildEnum<T extends string>(values: readonly [T, ...T[]], description?: string) {
@@ -49,6 +51,7 @@ async function safeFetch<T>(client: GriphookClient, method: HttpMethod, path: st
 function registerTokensSnapshot(server: McpServer, client: GriphookClient) {
   const tokensSchema = z.object({
     status: z.string().optional().describe("Optional status filter, e.g. eq.2"),
+    includeTokens: z.boolean().default(false).describe("Fetch full token catalog (large response)"),
     includeStats: z.boolean().default(false),
     includeEarningAssets: z.boolean().default(false),
     includeBalances: z.boolean().default(false).describe("Fetch current user's token balances"),
@@ -64,16 +67,18 @@ function registerTokensSnapshot(server: McpServer, client: GriphookClient) {
       description: "Fetch token catalog, user balances, voucher balance, and earning assets.",
       inputSchema: tokensSchema,
     },
-    async ({ status, includeStats, includeEarningAssets, includeBalances, tokenAddress, poolAddress }: TokensArgs) => {
+    async ({ status, includeTokens, includeStats, includeEarningAssets, includeBalances, tokenAddress, poolAddress }: TokensArgs) => {
       const result: Record<string, unknown> = {};
       const optionalTasks: Promise<void>[] = [];
 
-      // Always fetch token catalog
-      const tokenParams: Record<string, string> = {};
-      if (status) tokenParams.status = status;
-      optionalTasks.push(
-        safeFetch(client, "get", "/tokens", { params: tokenParams }).then((data) => { if (data) result.tokens = data; }),
-      );
+      // Fetch token catalog if explicitly requested (warning: large response with 800+ tokens)
+      if (includeTokens) {
+        const tokenParams: Record<string, string> = {
+          select: "address,_name,_symbol,_owner,_totalSupply,customDecimals,description,status,_paused",
+        };
+        if (status) tokenParams.status = status;
+        result.tokens = await client.request("get", "/tokens", { params: tokenParams });
+      }
 
       if (includeBalances) {
         optionalTasks.push(
