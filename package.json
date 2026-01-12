@@ -1,0 +1,60 @@
+{
+  "name": "griphook",
+  "version": "1.0.0",
+  "description": "Griphook MCP server exposing STRATO web app functionality over the Model Context Protocol.",
+  "main": "dist/server.js",
+  "bin": {
+    "griphook": "dist/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blockapps/griphook.git"
+  },
+  "bugs": {
+    "url": "https://github.com/blockapps/griphook/issues"
+  },
+  "homepage": "https://github.com/blockapps/griphook#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run typecheck",
+    "prepublishOnly": "npm run build",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "login": "tsx src/cli.ts login",
+    "logout": "tsx src/cli.ts logout",
+    "status": "tsx src/cli.ts status"
+  },
+  "keywords": [
+    "mcp",
+    "griphook",
+    "strato",
+    "blockapps"
+  ],
+  "author": "STRATO",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "open": "^10.1.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.3",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
