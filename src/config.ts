@@ -4,6 +4,15 @@ export type OAuthConfig = {
   openIdDiscoveryUrl: string;
 };
 
+export type HostedConfig = {
+  /** Public URL of the hosted server (e.g., https://griphook.strato.nexus) */
+  publicUrl: string;
+  /** OAuth client ID for hosted mode (may differ from local login client) */
+  clientId: string;
+  /** OAuth client secret for hosted mode */
+  clientSecret?: string;
+};
+
 export type GriphookConfig = {
   apiBaseUrl: string;
   oauth: OAuthConfig | null;
@@ -15,6 +24,8 @@ export type GriphookConfig = {
     path: string;
     ssePath: string;
   };
+  /** Hosted mode configuration. When set, the HTTP server requires Bearer token auth. */
+  hosted: HostedConfig | null;
 };
 
 function normalizeBaseUrl(value: string): string {
@@ -53,6 +64,30 @@ function loadOAuthConfig(): OAuthConfig | null {
   return null;
 }
 
+/**
+ * Load hosted mode configuration if GRIPHOOK_PUBLIC_URL is set.
+ * Hosted mode enables OAuth-protected HTTP endpoints for multi-user deployments.
+ */
+function loadHostedConfig(): HostedConfig | null {
+  const publicUrl = process.env.GRIPHOOK_PUBLIC_URL;
+  if (!publicUrl) return null;
+
+  // Hosted mode can use different OAuth client credentials than local login
+  const clientId = process.env.GRIPHOOK_HOSTED_CLIENT_ID || process.env.OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GRIPHOOK_HOSTED_CLIENT_SECRET || process.env.OAUTH_CLIENT_SECRET;
+
+  if (!clientId) {
+    console.warn("Warning: GRIPHOOK_PUBLIC_URL set but no OAuth client ID configured for hosted mode");
+    return null;
+  }
+
+  return {
+    publicUrl: publicUrl.endsWith("/") ? publicUrl.slice(0, -1) : publicUrl,
+    clientId,
+    clientSecret,
+  };
+}
+
 export function loadConfig(): GriphookConfig {
   const apiBaseUrl = normalizeBaseUrl(process.env.STRATO_API_BASE_URL || "http://localhost:3001/api");
   const timeoutEnv = Number(process.env.STRATO_HTTP_TIMEOUT_MS ?? 15000);
@@ -72,5 +107,6 @@ export function loadConfig(): GriphookConfig {
       path: httpPath,
       ssePath: httpSsePath,
     },
+    hosted: loadHostedConfig(),
   };
 }

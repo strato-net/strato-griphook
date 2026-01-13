@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import "dotenv/config";
-import { loginCommand, logoutCommand, statusCommand, getCredentialsPath } from "./login.js";
+import { loginCommand, logoutCommand, statusCommand, tokenCommand, getCredentialsPath } from "./login.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -15,12 +15,17 @@ Commands:
   login     Authenticate with BlockApps via browser
   logout    Clear stored credentials
   status    Show current authentication status
+  token     Print Bearer token for MCP client configuration
   serve     Start the MCP server (default)
   help      Show this help message
 
 Authentication:
   Run 'griphook login' to authenticate via browser OAuth.
   Credentials are stored in: ${getCredentialsPath()}
+
+Token for remote MCP servers:
+  Run 'griphook token' to get a Bearer token for configuring
+  MCP clients that don't support OAuth (e.g., Cursor, Cline).
 
 For MCP server configuration, see the documentation.
 `);
@@ -38,6 +43,10 @@ async function main(): Promise<void> {
 
     case "status":
       statusCommand();
+      break;
+
+    case "token":
+      await tokenCommand(args.includes("--json"));
       break;
 
     case "serve":

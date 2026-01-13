@@ -56,6 +56,7 @@ Security note: credentials are not encrypted. See the repository's [SECURITY.md]
 | `npm run login` | Authenticate via browser |
 | `npm run logout` | Clear stored credentials |
 | `npm run status` | Check authentication status |
+| `griphook token` | Print Bearer token for MCP client configuration |
 
 ## Environment Variables
 
@@ -83,6 +84,14 @@ Security note: credentials are not encrypted. See the repository's [SECURITY.md]
 | `GRIPHOOK_HTTP_PORT` | HTTP server port | `3005` |
 | `GRIPHOOK_HTTP_PATH` | HTTP endpoint path | `/mcp` |
 | `GRIPHOOK_HTTP_SSE_PATH` | Server-Sent Events path | `/mcp/events` |
+
+### Hosted Mode (Multi-user Deployment)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GRIPHOOK_PUBLIC_URL` | Public URL for hosted mode (enables auth) | *unset* |
+| `GRIPHOOK_HOSTED_CLIENT_ID` | OAuth client ID for hosted mode | `OAUTH_CLIENT_ID` |
+| `GRIPHOOK_HOSTED_CLIENT_SECRET` | OAuth client secret for hosted mode | `OAUTH_CLIENT_SECRET` |
 
 ## Running Griphook
 
@@ -195,3 +204,102 @@ If HTTP transport fails but stdio works:
 - Check if the port is already in use
 - Verify `GRIPHOOK_HTTP_HOST` is a valid bind address
 - Review logs for specific error messages
+
+## Hosted Mode (Multi-user Deployment)
+
+Hosted mode allows you to run a single Griphook instance that multiple users can connect to with their own STRATO credentials.
+
+### Enabling Hosted Mode
+
+Set `GRIPHOOK_PUBLIC_URL` to enable hosted mode:
+
+```bash
+GRIPHOOK_PUBLIC_URL=https://griphook.strato.nexus npm start
+```
+
+In hosted mode:
+- All MCP endpoints require Bearer token authentication
+- The server exposes `/.well-known/oauth-protected-resource` for RFC 9728 OAuth discovery
+- MCP clients with OAuth support can authenticate automatically
+
+### OAuth Discovery (RFC 9728)
+
+When a client connects without a token, the server returns:
+
+```
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://griphook.strato.nexus/.well-known/oauth-protected-resource"
+```
+
+The metadata endpoint returns:
+```json
+{
+  "resource": "https://griphook.strato.nexus/mcp",
+  "authorization_servers": ["https://keycloak.blockapps.net/auth/realms/mercata"],
+  "scopes_supported": ["openid", "email", "profile"],
+  "bearer_methods_supported": ["header"]
+}
+```
+
+Clients that support MCP OAuth (VS Code, Windsurf, OpenCode) will handle this automatically.
+
+### Connecting to a Hosted Server
+
+#### Option 1: OAuth (Recommended)
+
+For clients with OAuth support, just configure the URL:
+
+```json
+{
+  "mcpServers": {
+    "griphook": {
+      "url": "https://griphook.strato.nexus/mcp"
+    }
+  }
+}
+```
+
+The client will handle authentication automatically via browser.
+
+#### Option 2: Bearer Token (Fallback)
+
+For clients without OAuth support (Cursor, Cline), use a Bearer token:
+
+1. Install Griphook locally and login:
+   ```bash
+   npm install -g griphook
+   griphook login
+   ```
+
+2. Get your token:
+   ```bash
+   griphook token
+   ```
+
+3. Configure your MCP client with the token:
+   ```json
+   {
+     "mcpServers": {
+       "griphook": {
+         "url": "https://griphook.strato.nexus/mcp",
+         "headers": {
+           "Authorization": "Bearer YOUR_TOKEN_HERE"
+         }
+       }
+     }
+   }
+   ```
+
+Note: Tokens expire. Run `griphook token` again to get a fresh token when needed.
+
+### Keycloak Configuration for Hosted Mode
+
+For production hosted deployments, you may want a separate OAuth client:
+
+1. Create a new client in Keycloak (e.g., `griphook-hosted`)
+2. Set valid redirect URIs for your hosted domain
+3. Configure the client credentials in your environment:
+   ```bash
+   GRIPHOOK_HOSTED_CLIENT_ID=griphook-hosted
+   GRIPHOOK_HOSTED_CLIENT_SECRET=your-secret
+   ```

@@ -425,3 +425,68 @@ export function statusCommand(): void {
     console.log("\nRefresh token expired. Run 'griphook login' to re-authenticate.");
   }
 }
+
+/**
+ * CLI entry point for token command.
+ * Outputs a valid Bearer token for use in MCP client configurations.
+ * Automatically refreshes the token if needed.
+ */
+export async function tokenCommand(jsonOutput: boolean = false): Promise<void> {
+  const credentials = loadCredentials();
+
+  if (!credentials) {
+    console.error("Not logged in. Run 'griphook login' to authenticate.");
+    process.exit(1);
+  }
+
+  const now = Date.now();
+
+  // Check if refresh token is expired
+  if (now >= credentials.refreshExpiresAt) {
+    console.error("Session expired. Run 'griphook login' to re-authenticate.");
+    process.exit(1);
+  }
+
+  let token = credentials.accessToken;
+  let expiresAt = credentials.expiresAt;
+
+  // Refresh if access token is expired or about to expire (within 2 minutes)
+  const REFRESH_BUFFER_MS = 2 * 60 * 1000;
+  if (now >= credentials.expiresAt - REFRESH_BUFFER_MS) {
+    try {
+      const tokens = await refreshAccessToken(
+        credentials.openIdDiscoveryUrl,
+        credentials.clientId,
+        credentials.refreshToken,
+        credentials.clientSecret
+      );
+
+      // Update stored credentials
+      const updatedCredentials: StoredCredentials = {
+        ...credentials,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: Date.now() + tokens.expires_in * 1000,
+        refreshExpiresAt: Date.now() + (tokens.refresh_expires_in || 86400) * 1000,
+      };
+      saveCredentials(updatedCredentials);
+
+      token = tokens.access_token;
+      expiresAt = updatedCredentials.expiresAt;
+    } catch (err) {
+      console.error(`Failed to refresh token: ${err instanceof Error ? err.message : err}`);
+      console.error("Run 'griphook login' to re-authenticate.");
+      process.exit(1);
+    }
+  }
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({
+      token,
+      expiresAt,
+      expiresIn: Math.floor((expiresAt - Date.now()) / 1000),
+    }));
+  } else {
+    console.log(token);
+  }
+}
