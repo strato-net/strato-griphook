@@ -62,23 +62,63 @@ Add to your project's `.mcp.json` or Claude Code settings:
 }
 ```
 
-### Environment variables
+### Environment Variables
 
-- **Required for login (`griphook login` / `npm run login`):**
-  - `OAUTH_CLIENT_ID`
-  - `OAUTH_CLIENT_SECRET`
-  - `OPENID_DISCOVERY_URL`
-- **Required for the server (`griphook serve` / `npm start`):**
-  - `STRATO_API_BASE_URL`
-  - Existing credentials file from a prior login (`~/.griphook/credentials.json`)
+#### Required for Login
+| Variable | Description |
+|----------|-------------|
+| `OAUTH_CLIENT_ID` | OAuth 2.0 client ID |
+| `OAUTH_CLIENT_SECRET` | OAuth 2.0 client secret |
+| `OPENID_DISCOVERY_URL` | OpenID Connect discovery endpoint |
 
-## Documentation
+#### Required for Server
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STRATO_API_BASE_URL` | `http://localhost:3001/api` | STRATO API base URL |
+| `STRATO_HTTP_TIMEOUT_MS` | `15000` | HTTP request timeout (ms) |
 
-See [docs/](docs/) for detailed documentation:
+#### HTTP Transport
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GRIPHOOK_HTTP_ENABLED` | `true` | Enable HTTP transport |
+| `GRIPHOOK_HTTP_HOST` | `127.0.0.1` | Bind address |
+| `GRIPHOOK_HTTP_PORT` | `3005` | Port |
 
-- [Setup & Configuration](docs/setup.md)
-- [Tools Reference](docs/tools.md)
-- [Resources](docs/resources.md)
+#### Hosted Mode
+| Variable | Description |
+|----------|-------------|
+| `GRIPHOOK_PUBLIC_URL` | Public URL (enables multi-user auth) |
+| `GRIPHOOK_HOSTED_CLIENT_ID` | OAuth client ID for hosted mode |
+| `GRIPHOOK_HOSTED_CLIENT_SECRET` | OAuth client secret for hosted mode |
+
+## Hosted Mode
+
+Set `GRIPHOOK_PUBLIC_URL` to enable multi-user deployment with per-request authentication:
+
+```bash
+GRIPHOOK_PUBLIC_URL=https://griphook.example.com npm start
+```
+
+The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically:
+
+```json
+{
+  "mcpServers": {
+    "griphook": { "url": "https://griphook.example.com/mcp" }
+  }
+}
+```
+
+For clients without OAuth support, use `griphook token` to get a Bearer token.
+
+## Troubleshooting
+
+| Error | Solution |
+|-------|----------|
+| `OPENID_DISCOVERY_URL ... required` | Set OAuth env vars before `npm run login` |
+| `Failed to acquire access token` | Check credentials and discovery URL |
+| `403 Forbidden` | Token expired - run `npm run login` again |
+| `ECONNREFUSED` | Check `STRATO_API_BASE_URL` points to running instance |
 
 ## License
 
@@ -86,9 +126,8 @@ See [docs/](docs/) for detailed documentation:
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for notes on credential storage and HTTP transport exposure.
+This tool can move funds and change on-chain state. Treat it accordingly.
 
-## Notes
-- Browser login uses PKCE + state validation; rerun `griphook login` if auth fails.
-- HTTP transport binds to `127.0.0.1:3005` without TLS; keep it local or front with HTTPS if exposed.
-- Credentials are stored unencrypted at `~/.griphook/credentials.json`; protect your filesystem accordingly.
+- **Credentials** are stored unencrypted at `~/.griphook/credentials.json` (file `0600`, dir `0700`). Protect your filesystem.
+- **HTTP transport** binds to `127.0.0.1` without TLS. Keep it local or front with HTTPS + auth if exposed.
+- **Report vulnerabilities** privately to maintainers rather than opening public issues.
