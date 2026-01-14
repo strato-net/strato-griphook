@@ -161,8 +161,8 @@ const tokenPageHtml = (token: string, expiresIn: number, publicUrl: string) => `
 function registerLoginRoutes(app: Express, config: GriphookConfig) {
   if (!config.hosted || !config.oauth) return;
 
-  const { publicUrl, clientId, clientSecret } = config.hosted;
-  const { openIdDiscoveryUrl } = config.oauth;
+  const { publicUrl } = config.hosted;
+  const { clientId, clientSecret, openIdDiscoveryUrl } = config.oauth;
   const redirectUri = `${publicUrl}/login/callback`;
 
   // Login landing page

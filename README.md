@@ -105,18 +105,16 @@ To run your own Griphook server, add to `.mcp.json`:
 | Variable | Description |
 |----------|-------------|
 | `GRIPHOOK_PUBLIC_URL` | Public URL (enables multi-user auth) |
-| `GRIPHOOK_HOSTED_CLIENT_ID` | OAuth client ID for hosted mode |
-| `GRIPHOOK_HOSTED_CLIENT_SECRET` | OAuth client secret for hosted mode |
 
 ## Deploying a Hosted Instance
 
-Set `GRIPHOOK_PUBLIC_URL` to enable multi-user deployment with per-request authentication:
+Set `GRIPHOOK_PUBLIC_URL` to enable multi-user deployment with per-request authentication. You'll also need to add the redirect URI `https://<your-domain>/login/callback` to your Keycloak client.
 
 ```bash
 GRIPHOOK_PUBLIC_URL=https://griphook-testnet.strato.nexus npm start
 ```
 
-The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically. For clients without OAuth support, use `griphook token` to get a Bearer token.
+The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically. For clients without OAuth support, visit `/login` to get a Bearer token.
 
 See [deployment guide](https://github.com/strato-net/strato-griphook/issues/1) for full setup including Keycloak, DNS, nginx, and SSL configuration.
 

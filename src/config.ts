@@ -7,10 +7,6 @@ export type OAuthConfig = {
 export type HostedConfig = {
   /** Public URL of the hosted server (e.g., https://griphook.strato.nexus) */
   publicUrl: string;
-  /** OAuth client ID for hosted mode (may differ from local login client) */
-  clientId: string;
-  /** OAuth client secret for hosted mode */
-  clientSecret?: string;
 };
 
 export type GriphookConfig = {
@@ -72,19 +68,8 @@ function loadHostedConfig(): HostedConfig | null {
   const publicUrl = process.env.GRIPHOOK_PUBLIC_URL;
   if (!publicUrl) return null;
 
-  // Hosted mode can use different OAuth client credentials than local login
-  const clientId = process.env.GRIPHOOK_HOSTED_CLIENT_ID || process.env.OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GRIPHOOK_HOSTED_CLIENT_SECRET || process.env.OAUTH_CLIENT_SECRET;
-
-  if (!clientId) {
-    console.warn("Warning: GRIPHOOK_PUBLIC_URL set but no OAuth client ID configured for hosted mode");
-    return null;
-  }
-
   return {
     publicUrl: publicUrl.endsWith("/") ? publicUrl.slice(0, -1) : publicUrl,
-    clientId,
-    clientSecret,
   };
 }
 
