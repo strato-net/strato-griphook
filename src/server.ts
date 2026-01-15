@@ -89,19 +89,40 @@ const loginPageHtml = (error?: string) => `
   <title>Griphook Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
-    h1 { color: #333; }
-    .btn { display: inline-block; padding: 12px 24px; background: #0066cc; color: white; text-decoration: none; border-radius: 6px; font-size: 16px; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #fafafa; }
+    .ascii-art { font-family: monospace; font-size: 8px; line-height: 1.1; white-space: pre; color: #0066cc; margin-bottom: 30px; overflow-x: auto; }
+    @media (min-width: 600px) { .ascii-art { font-size: 10px; } }
+    h1 { color: #333; margin-top: 0; }
+    .btn { display: inline-block; padding: 14px 28px; background: #0066cc; color: white; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 500; }
     .btn:hover { background: #0052a3; }
-    .error { background: #fee; border: 1px solid #c00; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+    .error { background: #fee; border: 1px solid #c00; padding: 12px; border-radius: 6px; margin-bottom: 20px; color: #900; }
     p { line-height: 1.6; color: #555; }
+    .card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .subtitle { color: #666; font-size: 14px; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <h1>Griphook Login</h1>
-  ${error ? `<div class="error">${error}</div>` : ""}
-  <p>Sign in to get an access token for use with MCP clients that don't support OAuth (like Claude Code, Cursor, or Cline).</p>
-  <p><a href="/login/start" class="btn">Sign in with STRATO</a></p>
+  <div class="ascii-art">███████╗████████╗██████╗  █████╗ ████████╗ ██████╗
+██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗
+███████╗   ██║   ██████╔╝███████║   ██║   ██║   ██║
+╚════██║   ██║   ██╔══██╗██╔══██║   ██║   ██║   ██║
+███████║   ██║   ██║  ██║██║  ██║   ██║   ╚██████╔╝
+╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
+
+ ██████╗ ██████╗ ██╗██████╗ ██╗  ██╗ ██████╗  ██████╗ ██╗  ██╗
+██╔════╝ ██╔══██╗██║██╔══██╗██║  ██║██╔═══██╗██╔═══██╗██║ ██╔╝
+██║  ███╗██████╔╝██║██████╔╝███████║██║   ██║██║   ██║█████╔╝
+██║   ██║██╔══██╗██║██╔═══╝ ██╔══██║██║   ██║██║   ██║██╔═██╗
+╚██████╔╝██║  ██║██║██║     ██║  ██║╚██████╔╝╚██████╔╝██║  ██╗
+ ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝</div>
+
+  <div class="card">
+    <h1>Login</h1>
+    <p class="subtitle">MCP Server for STRATO Blockchain</p>
+    ${error ? `<div class="error">${error}</div>` : ""}
+    <p>Sign in to get a token for use with AI coding assistants like Claude Code, Cursor, Cline, Windsurf, and others.</p>
+    <p><a href="/login/start" class="btn">Sign in with STRATO</a></p>
+  </div>
 </body>
 </html>
 `;
@@ -113,52 +134,184 @@ const tokenPageHtml = (refreshToken: string, expiresInDays: number, publicUrl: s
   <title>Griphook - Your Token</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-    h1 { color: #333; }
-    .token-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 16px; word-break: break-all; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
-    .copy-btn { display: inline-block; padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 12px; font-size: 14px; }
-    .copy-btn:hover { background: #0052a3; }
-    .success { color: #080; }
-    .info { background: #d1ecf1; border: 1px solid #0c5460; padding: 12px; border-radius: 6px; margin-top: 20px; color: #0c5460; }
-    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
-    code { font-family: monospace; }
-    h2 { margin-top: 30px; color: #333; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; background: #fafafa; }
+    .ascii-art { font-family: monospace; font-size: 8px; line-height: 1.1; white-space: pre; color: #0066cc; margin-bottom: 30px; overflow-x: auto; }
+    @media (min-width: 600px) { .ascii-art { font-size: 10px; } }
+    h1 { color: #333; margin-top: 0; }
+    h2 { margin-top: 24px; color: #333; font-size: 18px; }
+    .card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .token-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 16px; word-break: break-all; font-family: monospace; font-size: 11px; max-height: 120px; overflow-y: auto; }
+    .btn { display: inline-block; padding: 10px 18px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; text-decoration: none; margin-right: 8px; margin-top: 12px; }
+    .btn:hover { background: #0052a3; }
+    .btn-secondary { background: #6c757d; }
+    .btn-secondary:hover { background: #545b62; }
+    .success { color: #080; font-weight: 500; }
+    .info { background: #d1ecf1; border: 1px solid #bee5eb; padding: 12px; border-radius: 6px; margin-top: 16px; color: #0c5460; font-size: 14px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 0; }
+    code { font-family: 'SF Mono', Monaco, 'Courier New', monospace; }
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e9ecef; margin-bottom: 16px; }
+    .tab { padding: 10px 16px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab:hover { color: #333; }
+    .tab.active { color: #0066cc; border-bottom-color: #0066cc; font-weight: 500; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tool-note { font-size: 13px; color: #666; margin-bottom: 12px; }
+    .expiry { font-size: 13px; color: #666; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <h1>Your Token</h1>
-  <p class="success">✓ Authentication successful!</p>
+  <div class="ascii-art">███████╗████████╗██████╗  █████╗ ████████╗ ██████╗
+██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗
+███████╗   ██║   ██████╔╝███████║   ██║   ██║   ██║
+╚════██║   ██║   ██╔══██╗██╔══██║   ██║   ██║   ██║
+███████║   ██║   ██║  ██║██║  ██║   ██║   ╚██████╔╝
+╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
 
-  <h2>Token</h2>
-  <div class="token-box" id="token">${refreshToken}</div>
-  <button class="copy-btn" onclick="copyToken()">Copy Token</button>
+ ██████╗ ██████╗ ██╗██████╗ ██╗  ██╗ ██████╗  ██████╗ ██╗  ██╗
+██╔════╝ ██╔══██╗██║██╔══██╗██║  ██║██╔═══██╗██╔═══██╗██║ ██╔╝
+██║  ███╗██████╔╝██║██████╔╝███████║██║   ██║██║   ██║█████╔╝
+██║   ██║██╔══██╗██║██╔═══╝ ██╔══██║██║   ██║██║   ██║██╔═██╗
+╚██████╔╝██║  ██║██║██║     ██║  ██║╚██████╔╝╚██████╔╝██║  ██╗
+ ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝</div>
 
-  <div class="info">
-    <strong>Note:</strong> This token is valid for approximately ${expiresInDays} days. The server will automatically handle token refresh.
+  <div class="card">
+    <h1>Authentication Successful</h1>
+    <p class="success">✓ You're signed in and ready to connect your AI assistant.</p>
+
+    <h2>Your Token</h2>
+    <div class="token-box" id="token">${refreshToken}</div>
+    <button class="btn" onclick="copyToken()">Copy Token</button>
+    <button class="btn btn-secondary" onclick="downloadConfig()">Download .mcp.json</button>
+    <p class="expiry">Valid for approximately <strong>${expiresInDays} days</strong>. The server handles refresh automatically.</p>
   </div>
 
-  <h2>MCP Client Configuration</h2>
-  <p>Add this to your MCP client settings (e.g., Claude Code <code>.mcp.json</code>):</p>
-  <pre><code>{
+  <div class="card">
+    <h2>Setup Instructions</h2>
+    <p class="tool-note">Choose your AI coding tool below for specific setup instructions.</p>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('claude-code')">Claude Code</button>
+      <button class="tab" onclick="showTab('cursor')">Cursor</button>
+      <button class="tab" onclick="showTab('cline')">Cline</button>
+      <button class="tab" onclick="showTab('windsurf')">Windsurf</button>
+      <button class="tab" onclick="showTab('opencode')">OpenCode</button>
+    </div>
+
+    <div id="claude-code" class="tab-content active">
+      <p class="tool-note">Add to <code>.mcp.json</code> in your project root, or <code>~/.claude.json</code> for global access:</p>
+      <pre><code>{
   "mcpServers": {
     "griphook": {
       "type": "http",
       "url": "${publicUrl}/mcp",
       "headers": {
-        "Authorization": "Bearer &lt;paste-token-here&gt;"
+        "Authorization": "Bearer ${refreshToken}"
       }
     }
   }
 }</code></pre>
+    </div>
+
+    <div id="cursor" class="tab-content">
+      <p class="tool-note">Add to <code>~/.cursor/mcp.json</code> (global) or <code>.cursor/mcp.json</code> (project):</p>
+      <pre><code>{
+  "mcpServers": {
+    "griphook": {
+      "type": "http",
+      "url": "${publicUrl}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${refreshToken}"
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="cline" class="tab-content">
+      <p class="tool-note">Open VS Code → Cline sidebar → MCP Servers icon → Configure → Edit <code>cline_mcp_settings.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "griphook": {
+      "type": "sse",
+      "url": "${publicUrl}/mcp/events",
+      "headers": {
+        "Authorization": "Bearer ${refreshToken}"
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="windsurf" class="tab-content">
+      <p class="tool-note">Open Windsurf Settings → Cascade → MCP Servers, or edit <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "griphook": {
+      "type": "sse",
+      "url": "${publicUrl}/mcp/events",
+      "headers": {
+        "Authorization": "Bearer ${refreshToken}"
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div id="opencode" class="tab-content">
+      <p class="tool-note">Add to <code>~/.config/opencode/opencode.json</code> (global) or <code>opencode.json</code> (project):</p>
+      <pre><code>{
+  "mcp": {
+    "griphook": {
+      "type": "remote",
+      "url": "${publicUrl}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${refreshToken}"
+      }
+    }
+  }
+}</code></pre>
+    </div>
+
+    <div class="info">
+      <strong>Tip:</strong> Click "Download .mcp.json" above to get a ready-to-use config file for Claude Code and Cursor.
+    </div>
+  </div>
 
   <script>
     function copyToken() {
       const token = document.getElementById('token').textContent;
       navigator.clipboard.writeText(token).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = 'Copy Token', 2000);
+        event.target.textContent = 'Copied!';
+        setTimeout(() => event.target.textContent = 'Copy Token', 2000);
       });
+    }
+
+    function downloadConfig() {
+      const config = {
+        mcpServers: {
+          griphook: {
+            type: "http",
+            url: "${publicUrl}/mcp",
+            headers: {
+              Authorization: "Bearer ${refreshToken}"
+            }
+          }
+        }
+      };
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '.mcp.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(\`[onclick="showTab('\${tabId}')"]\`).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
     }
   </script>
 </body>
