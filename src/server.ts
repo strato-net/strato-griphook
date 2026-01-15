@@ -50,6 +50,15 @@ function buildWwwAuthenticateHeader(config: GriphookConfig): string {
 const pendingLogins = new Map<string, { verifier: string; expiresAt: number }>();
 
 /**
+ * In-memory cache for access tokens (keyed by refresh token hash)
+ * Stores: { accessToken, expiresAt }
+ */
+const accessTokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
+
+/** Buffer time before expiry to trigger refresh (1 minute) */
+const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+/**
  * Generate PKCE code verifier and challenge
  */
 function generatePkce(): { verifier: string; challenge: string } {
@@ -97,7 +106,7 @@ const loginPageHtml = (error?: string) => `
 </html>
 `;
 
-const tokenPageHtml = (token: string, expiresIn: number, publicUrl: string) => `
+const tokenPageHtml = (refreshToken: string, expiresInDays: number, publicUrl: string) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -110,29 +119,30 @@ const tokenPageHtml = (token: string, expiresIn: number, publicUrl: string) => `
     .copy-btn { display: inline-block; padding: 8px 16px; background: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 12px; font-size: 14px; }
     .copy-btn:hover { background: #0052a3; }
     .success { color: #080; }
-    .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 6px; margin-top: 20px; }
+    .info { background: #d1ecf1; border: 1px solid #0c5460; padding: 12px; border-radius: 6px; margin-top: 20px; color: #0c5460; }
     pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
     code { font-family: monospace; }
     h2 { margin-top: 30px; color: #333; }
   </style>
 </head>
 <body>
-  <h1>Your Access Token</h1>
+  <h1>Your Token</h1>
   <p class="success">✓ Authentication successful!</p>
 
   <h2>Token</h2>
-  <div class="token-box" id="token">${token}</div>
+  <div class="token-box" id="token">${refreshToken}</div>
   <button class="copy-btn" onclick="copyToken()">Copy Token</button>
 
-  <div class="warning">
-    <strong>Note:</strong> This token expires in ${Math.floor(expiresIn / 60)} minutes. You'll need to return here to get a new token when it expires.
+  <div class="info">
+    <strong>Note:</strong> This token is valid for approximately ${expiresInDays} days. The server will automatically handle token refresh.
   </div>
 
   <h2>MCP Client Configuration</h2>
-  <p>Add this to your MCP client settings (e.g., Claude Code <code>claude_desktop_config.json</code>):</p>
+  <p>Add this to your MCP client settings (e.g., Claude Code <code>.mcp.json</code>):</p>
   <pre><code>{
   "mcpServers": {
     "griphook": {
+      "type": "http",
       "url": "${publicUrl}/mcp",
       "headers": {
         "Authorization": "Bearer &lt;paste-token-here&gt;"
@@ -248,8 +258,16 @@ function registerLoginRoutes(app: Express, config: GriphookConfig) {
         timeout: 30000,
       });
 
-      const { access_token, expires_in } = tokenResponse.data;
-      res.type("html").send(tokenPageHtml(access_token, expires_in, publicUrl));
+      const { refresh_token, refresh_expires_in } = tokenResponse.data;
+
+      if (!refresh_token) {
+        res.type("html").send(loginPageHtml("No refresh token received. Please contact administrator."));
+        return;
+      }
+
+      // Convert refresh_expires_in (seconds) to days for display
+      const expiresInDays = Math.floor((refresh_expires_in || 259200) / 86400); // Default 3 days if not provided
+      res.type("html").send(tokenPageHtml(refresh_token, expiresInDays, publicUrl));
     } catch (err) {
       console.error("Token exchange error:", err);
       res.type("html").send(loginPageHtml("Failed to complete login. Please try again."));
@@ -260,9 +278,69 @@ function registerLoginRoutes(app: Express, config: GriphookConfig) {
 }
 
 /**
+ * Exchange a refresh token for an access token.
+ * Uses caching to avoid unnecessary token exchanges.
+ */
+async function getAccessTokenFromRefresh(
+  refreshToken: string,
+  config: GriphookConfig,
+): Promise<{ accessToken: string } | { error: string }> {
+  // Hash the refresh token for cache key (don't store raw tokens as keys)
+  const cacheKey = createHash("sha256").update(refreshToken).digest("hex");
+
+  // Check cache first
+  const cached = accessTokenCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt - TOKEN_REFRESH_BUFFER_MS) {
+    return { accessToken: cached.accessToken };
+  }
+
+  // Exchange refresh token for access token
+  if (!config.oauth) {
+    return { error: "OAuth not configured" };
+  }
+
+  try {
+    const oidcConfig = await axios.get(config.oauth.openIdDiscoveryUrl, { timeout: 10000 });
+    const tokenEndpoint = oidcConfig.data.token_endpoint;
+
+    const params = new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: config.oauth.clientId,
+      refresh_token: refreshToken,
+    });
+
+    if (config.oauth.clientSecret) {
+      params.set("client_secret", config.oauth.clientSecret);
+    }
+
+    const tokenResponse = await axios.post(tokenEndpoint, params.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      timeout: 30000,
+    });
+
+    const { access_token, expires_in } = tokenResponse.data;
+
+    // Cache the access token
+    accessTokenCache.set(cacheKey, {
+      accessToken: access_token,
+      expiresAt: Date.now() + (expires_in * 1000),
+    });
+
+    return { accessToken: access_token };
+  } catch (err) {
+    // Clear cache on error
+    accessTokenCache.delete(cacheKey);
+    if (axios.isAxiosError(err) && err.response?.status === 400) {
+      return { error: "Refresh token is invalid or expired" };
+    }
+    return { error: "Failed to exchange refresh token" };
+  }
+}
+
+/**
  * Express middleware to verify Bearer token in hosted mode.
- * In hosted mode, requests must include a valid Bearer token.
- * The token is validated by making a request to the STRATO API.
+ * In hosted mode, requests must include a valid refresh token.
+ * The middleware exchanges the refresh token for an access token.
  */
 function createHostedAuthMiddleware(config: GriphookConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -283,37 +361,24 @@ function createHostedAuthMiddleware(config: GriphookConfig) {
       return;
     }
 
-    const token = authHeader.slice(7); // Remove "Bearer " prefix
+    const refreshToken = authHeader.slice(7); // Remove "Bearer " prefix
 
-    // Validate token by making a test request to STRATO API
-    // This also ensures the token has access to STRATO resources
-    try {
-      const response = await fetch(`${config.apiBaseUrl}/tokens/balance`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    // Exchange refresh token for access token
+    const result = await getAccessTokenFromRefresh(refreshToken, config);
 
-      if (!response.ok) {
-        res.status(401)
-          .set("WWW-Authenticate", buildWwwAuthenticateHeader(config))
-          .json({
-            error: "invalid_token",
-            error_description: "Token is invalid or expired",
-          });
-        return;
-      }
-
-      // Attach token to request for downstream use
-      (req as any).stratoToken = token;
-      next();
-    } catch (err) {
+    if ("error" in result) {
       res.status(401)
         .set("WWW-Authenticate", buildWwwAuthenticateHeader(config))
         .json({
           error: "invalid_token",
-          error_description: "Failed to validate token",
+          error_description: result.error,
         });
+      return;
     }
+
+    // Attach access token to request for downstream use
+    (req as any).stratoToken = result.accessToken;
+    next();
   };
 }
 
