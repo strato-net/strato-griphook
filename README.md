@@ -34,29 +34,22 @@ Griphook lets AI assistants like Claude interact with STRATO. Through 67 MCP too
 
 A public testnet instance is available (mainnet coming soon).
 
-**For OAuth-capable clients** (VS Code, Windsurf, OpenCode):
-```json
-{
-  "mcpServers": {
-    "griphook": { "url": "https://griphook-testnet.strato.nexus/mcp" }
-  }
-}
-```
-
-**For non-OAuth clients** (Cursor, Cline, Claude Code):
-
 1. Visit https://griphook-testnet.strato.nexus/login to sign in and get a token
-2. Add to your MCP config:
+2. Add to your MCP config (e.g., `.mcp.json` for Claude Code):
+
 ```json
 {
   "mcpServers": {
     "griphook": {
+      "type": "http",
       "url": "https://griphook-testnet.strato.nexus/mcp",
       "headers": { "Authorization": "Bearer <your-token>" }
     }
   }
 }
 ```
+
+See [AI Coding Tool Compatibility](#ai-coding-tool-compatibility) for tool-specific configurations.
 
 ## Running Your Own Instance
 
@@ -126,6 +119,99 @@ See [deployment guide](https://github.com/strato-net/strato-griphook/issues/1) f
 | `Failed to acquire access token` | Check credentials and discovery URL |
 | `403 Forbidden` | Token expired - run `npm run login` again |
 | `ECONNREFUSED` | Check `STRATO_API_BASE_URL` points to running instance |
+
+## AI Coding Tool Compatibility
+
+Griphook works with any MCP-enabled AI coding tool. All tools use the same authentication flow: sign in at `/login` to get a token, then add it to your tool's config.
+
+### Supported Tools
+
+| Tool | Config File | Type Field |
+|------|-------------|------------|
+| **Claude Code** | `.mcp.json` or `~/.claude.json` | `http` |
+| **Cursor** | `.cursor/mcp.json` or `~/.cursor/mcp.json` | `http` |
+| **VS Code Copilot** | `.vscode/mcp.json` | `http` |
+| **Cline** | `cline_mcp_settings.json` | `streamableHttp` |
+| **OpenCode** | `opencode.json` or `~/.config/opencode/opencode.json` | `remote` |
+| **Kilo Code** | `.kilocode/mcp.json` | `streamable-http` |
+| **Codex** | `~/.codex/config.toml` | `http` |
+
+### Example Configurations
+
+**Claude Code / Cursor / VS Code Copilot** (`.mcp.json`):
+```json
+{
+  "mcpServers": {
+    "griphook": {
+      "type": "http",
+      "url": "https://griphook-testnet.strato.nexus/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+**Cline** (`cline_mcp_settings.json`):
+```json
+{
+  "mcpServers": {
+    "griphook": {
+      "type": "streamableHttp",
+      "url": "https://griphook-testnet.strato.nexus/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+**OpenCode** (`opencode.json`):
+```json
+{
+  "mcp": {
+    "griphook": {
+      "type": "remote",
+      "url": "https://griphook-testnet.strato.nexus/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+**Kilo Code** (`.kilocode/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "griphook": {
+      "type": "streamable-http",
+      "url": "https://griphook-testnet.strato.nexus/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`):
+```toml
+[mcp_servers.griphook]
+type = "http"
+url = "https://griphook-testnet.strato.nexus/mcp"
+
+[mcp_servers.griphook.headers]
+Authorization = "Bearer <your-token>"
+```
+
+### Known Issues
+
+- **Cursor**: Tools may appear in the sidebar but not be callable in chat. Try using global config (`~/.cursor/mcp.json`) and restart Cursor.
+- **VS Code Copilot**: Requires VS Code 1.102+ with Agent Mode enabled (`chat.agent.enabled`).
 
 ## License
 
