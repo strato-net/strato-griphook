@@ -37,7 +37,7 @@ Public hosted instances are available for both production and testnet:
 | Environment | Login URL | MCP Endpoint |
 |-------------|-----------|--------------|
 | **Production** | https://griphook.strato.nexus/login | `https://griphook.strato.nexus/mcp` |
-| **Testnet** | https://griphook-testnet.strato.nexus/login | `https://griphook-testnet.strato.nexus/mcp` |
+| **Testnet** | https://griphook.testnet.strato.nexus/login | `https://griphook.testnet.strato.nexus/mcp` |
 
 1. Visit the login URL to sign in and get a token
 2. Add to your MCP config (e.g., `.mcp.json` for Claude Code):
@@ -109,7 +109,7 @@ To run your own Griphook server, add to `.mcp.json`:
 Set `GRIPHOOK_PUBLIC_URL` to enable multi-user deployment with per-request authentication. You'll also need to add the redirect URI `https://<your-domain>/login/callback` to your Keycloak client.
 
 ```bash
-GRIPHOOK_PUBLIC_URL=https://griphook-testnet.strato.nexus npm start
+GRIPHOOK_PUBLIC_URL=https://griphook.testnet.strato.nexus npm start
 ```
 
 The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically. For clients without OAuth support, visit `/login` to get a Bearer token.
