@@ -112,7 +112,10 @@ Set `GRIPHOOK_PUBLIC_URL` to enable multi-user deployment with per-request authe
 GRIPHOOK_PUBLIC_URL=https://griphook.testnet.strato.nexus npm start
 ```
 
-The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically. For clients without OAuth support, visit `/login` to get a Bearer token.
+The server exposes `/.well-known/oauth-protected-resource` (RFC 9728). MCP clients with OAuth support authenticate automatically.  
+Hosted mode accepts either:
+- a user access token (JWT) from an active OAuth session, or
+- a refresh token (from `/login`) which the server exchanges for an access token.
 
 See [deployment guide](https://github.com/strato-net/strato-griphook/issues/1) for full setup including Keycloak, DNS, nginx, and SSL configuration.
 
@@ -127,7 +130,7 @@ See [deployment guide](https://github.com/strato-net/strato-griphook/issues/1) f
 
 ## AI Coding Tool Compatibility
 
-Griphook works with any MCP-enabled AI coding tool. All tools use the same authentication flow: sign in at `/login` to get a token, then add it to your tool's config.
+Griphook works with any MCP-enabled AI coding tool. You can either reuse an active OAuth access token, or sign in at `/login` to get a token for tool configuration.
 
 ### Supported Tools
 

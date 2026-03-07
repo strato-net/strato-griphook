@@ -12,6 +12,7 @@ import { registerTools } from "./tools.js";
 import { registerResources } from "./resources.js";
 import { requestContext } from "./requestContext.js";
 import axios from "axios";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -55,9 +56,51 @@ const pendingLogins = new Map<string, { verifier: string; expiresAt: number }>()
  * Stores: { accessToken, expiresAt }
  */
 const accessTokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
+const verifiedAccessTokenCache = new Map<string, number>();
+const jwksVerifierCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 /** Buffer time before expiry to trigger refresh (1 minute) */
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+function looksLikeJwt(token: string): boolean {
+  return token.split(".").length === 3;
+}
+
+async function verifyBearerAccessToken(
+  accessToken: string,
+  config: GriphookConfig,
+): Promise<boolean> {
+  if (!config.oauth) return false;
+
+  const tokenCacheKey = createHash("sha256").update(accessToken).digest("hex");
+  const cachedUntil = verifiedAccessTokenCache.get(tokenCacheKey);
+  if (cachedUntil && Date.now() < cachedUntil - TOKEN_REFRESH_BUFFER_MS) {
+    return true;
+  }
+
+  try {
+    const oidcConfig = await axios.get(config.oauth.openIdDiscoveryUrl, { timeout: 10000 });
+    const jwksUri = oidcConfig.data.jwks_uri as string | undefined;
+    if (!jwksUri) {
+      return false;
+    }
+
+    let jwks = jwksVerifierCache.get(jwksUri);
+    if (!jwks) {
+      jwks = createRemoteJWKSet(new URL(jwksUri));
+      jwksVerifierCache.set(jwksUri, jwks);
+    }
+
+    const { payload } = await jwtVerify(accessToken, jwks, {
+      clockTolerance: 5,
+    });
+    const expiresAt = payload.exp ? payload.exp * 1000 : Date.now() + (5 * 60 * 1000);
+    verifiedAccessTokenCache.set(tokenCacheKey, expiresAt);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Generate PKCE code verifier and challenge
@@ -1014,8 +1057,9 @@ async function getAccessTokenFromRefresh(
 
 /**
  * Express middleware to verify Bearer token in hosted mode.
- * In hosted mode, requests must include a valid refresh token.
- * The middleware exchanges the refresh token for an access token.
+ * In hosted mode, requests must include either:
+ * - a valid user access token (JWT), or
+ * - a refresh token that can be exchanged for an access token.
  */
 function createHostedAuthMiddleware(config: GriphookConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -1036,17 +1080,23 @@ function createHostedAuthMiddleware(config: GriphookConfig) {
       return;
     }
 
-    const refreshToken = authHeader.slice(7); // Remove "Bearer " prefix
+    const bearerToken = authHeader.slice(7); // Remove "Bearer " prefix
 
-    // Exchange refresh token for access token
-    const result = await getAccessTokenFromRefresh(refreshToken, config);
+    let result: { accessToken: string } | { error: string };
+
+    // Prefer direct access-token mode for active logged-in browser sessions.
+    if (looksLikeJwt(bearerToken) && await verifyBearerAccessToken(bearerToken, config)) {
+      result = { accessToken: bearerToken };
+    } else {
+      result = await getAccessTokenFromRefresh(bearerToken, config);
+    }
 
     if ("error" in result) {
       res.status(401)
         .set("WWW-Authenticate", buildWwwAuthenticateHeader(config))
         .json({
           error: "invalid_token",
-          error_description: result.error,
+          error_description: `${result.error}. Provide either a valid access token or a refresh token.`,
         });
       return;
     }
