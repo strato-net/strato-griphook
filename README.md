@@ -56,6 +56,139 @@ Public hosted instances are available for both production and testnet:
 
 See [AI Coding Tool Compatibility](#ai-coding-tool-compatibility) for tool-specific configurations.
 
+## Using the CLI Locally
+
+Build and run the local CLI:
+
+```bash
+npm install
+npm run build
+```
+
+Create `.env` from `.env.sample`, then set at least:
+
+- `STRATO_API_BASE_URL` or `STRATO_NODE_URL`
+- `OPENID_DISCOVERY_URL`
+- `OAUTH_CLIENT_ID`
+- `OAUTH_CLIENT_SECRET`
+
+CLI auth + basic commands:
+
+```bash
+node dist/cli.js login
+node dist/cli.js status
+node dist/cli.js token
+node dist/cli.js logout
+```
+
+Tool discovery and invocation:
+
+```bash
+node dist/cli.js tools
+node dist/cli.js tools strato.tokens
+node dist/cli.js strato.tokens --includeBalances
+node dist/cli.js strato.tokens --includeBalances --json
+```
+
+Important CLI behavior:
+
+- `node dist/cli.js` with no command starts the MCP server (`serve` mode).
+- Tool flags are schema-validated: unknown flags fail fast.
+- Non-boolean flags require a value, for example `--tokenAddress <value>`.
+- `--no-<flag>` is only valid for boolean inputs.
+- Credentials are stored at `~/.griphook/credentials.json`.
+
+### `.env` Examples
+
+Mainnet example:
+
+```bash
+STRATO_API_BASE_URL=https://app.strato.nexus/api
+OPENID_DISCOVERY_URL=https://keycloak.blockapps.net/auth/realms/mercata/.well-known/openid-configuration
+OAUTH_CLIENT_ID=your-client-id
+OAUTH_CLIENT_SECRET=your-client-secret
+```
+
+Testnet example:
+
+```bash
+STRATO_API_BASE_URL=https://buildtest.mercata-testnet.blockapps.net/api
+OPENID_DISCOVERY_URL=https://keycloak.blockapps.net/auth/realms/mercata/.well-known/openid-configuration
+OAUTH_CLIENT_ID=your-client-id
+OAUTH_CLIENT_SECRET=your-client-secret
+```
+
+### Common CLI Recipes
+
+Most commands below require an active login (`node dist/cli.js login`).
+
+Show available tools:
+
+```bash
+node dist/cli.js tools
+```
+
+Show inputs for a specific tool:
+
+```bash
+node dist/cli.js tools strato.tokens
+```
+
+Fetch token + voucher balances (current user):
+
+```bash
+node dist/cli.js strato.tokens --includeBalances --json
+```
+
+Fetch token catalog (can be large):
+
+```bash
+node dist/cli.js strato.tokens --includeTokens --status eq.2 --json
+```
+
+Inspect swap pools and your LP positions:
+
+```bash
+node dist/cli.js strato.swap --includePositions --json
+```
+
+Inspect a specific token pair in swap:
+
+```bash
+node dist/cli.js strato.swap --tokenA <tokenA-address> --tokenB <tokenB-address> --json
+```
+
+Fetch lending dashboard with interest:
+
+```bash
+node dist/cli.js strato.lending --includeInterest --json
+```
+
+Fetch CDP overview with stats:
+
+```bash
+node dist/cli.js strato.cdp --includeStats --json
+```
+
+Fetch rewards and leaderboard:
+
+```bash
+node dist/cli.js strato.rewards --includeLeaderboard --leaderboardLimit 20 --json
+```
+
+Search chain events:
+
+```bash
+node dist/cli.js strato.events --limit 25 --order block_timestamp.desc --json
+```
+
+Run against another environment without editing `.env`:
+
+```bash
+STRATO_API_BASE_URL=https://app.strato.nexus/api \
+  node dist/cli.js strato.tokens --includeBalances --json
+```
+
 ## Running Your Own Instance
 
 To run your own Griphook server, add to `.mcp.json`:
@@ -86,11 +219,14 @@ To run your own Griphook server, add to `.mcp.json`:
 | `OAUTH_CLIENT_SECRET` | OAuth 2.0 client secret |
 | `OPENID_DISCOVERY_URL` | OpenID Connect discovery endpoint |
 
-#### Required for Server
+#### Required for Server and CLI API Calls
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `STRATO_API_BASE_URL` | `http://localhost:3001/api` | STRATO API base URL |
+| `STRATO_NODE_URL` | unset | Alternative node base URL. If set and `STRATO_API_BASE_URL` is unset, Griphook appends `/api` automatically. |
 | `STRATO_HTTP_TIMEOUT_MS` | `15000` | HTTP request timeout (ms) |
+
+`STRATO_API_BASE_URL` takes precedence over `STRATO_NODE_URL`.
 
 #### HTTP Transport
 | Variable | Default | Description |

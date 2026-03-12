@@ -29,6 +29,21 @@ function normalizeBaseUrl(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
+function resolveApiBaseUrl(): string {
+  const explicitApiUrl = process.env.STRATO_API_BASE_URL;
+  if (explicitApiUrl) {
+    return normalizeBaseUrl(explicitApiUrl);
+  }
+
+  const nodeUrl = process.env.STRATO_NODE_URL;
+  if (nodeUrl) {
+    const normalizedNode = normalizeBaseUrl(nodeUrl);
+    return normalizedNode.endsWith("/api") ? normalizedNode : `${normalizedNode}/api`;
+  }
+
+  return "http://localhost:3001/api";
+}
+
 function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) return defaultValue;
   return !["false", "0", "no", "off"].includes(value.toLowerCase());
@@ -74,7 +89,7 @@ function loadHostedConfig(): HostedConfig | null {
 }
 
 export function loadConfig(): GriphookConfig {
-  const apiBaseUrl = normalizeBaseUrl(process.env.STRATO_API_BASE_URL || "http://localhost:3001/api");
+  const apiBaseUrl = resolveApiBaseUrl();
   const timeoutEnv = Number(process.env.STRATO_HTTP_TIMEOUT_MS ?? 15000);
   const httpHost = process.env.GRIPHOOK_HTTP_HOST || "127.0.0.1";
   const httpPort = parsePort(process.env.GRIPHOOK_HTTP_PORT, 3005);

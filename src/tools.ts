@@ -39,11 +39,41 @@ export function registerTools(server: McpServer, client: GriphookClient, config:
   registerOracleActions(server, client);
 }
 
-// Helper to safely fetch an endpoint, returning undefined on error
+function isAuthOrSessionError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("not logged in") ||
+    message.includes("session expired") ||
+    message.includes("re-authenticate") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden") ||
+    message.includes("http 401") ||
+    message.includes("http 403")
+  );
+}
+
+function isEndpointUnavailableError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("http 404") ||
+    message.includes("http 405") ||
+    message.includes("http 501") ||
+    message.includes("not found") ||
+    message.includes("cannot get")
+  );
+}
+
+// Helper to safely fetch an optional endpoint, returning undefined when unavailable.
+// Auth/session failures are always propagated so callers don't get empty snapshots.
 async function safeFetch<T>(client: GriphookClient, method: HttpMethod, path: string, options?: Parameters<typeof client.request>[2]): Promise<T | undefined> {
   try {
     return await client.request<T>(method, path, options);
-  } catch {
+  } catch (err) {
+    if (isAuthOrSessionError(err) || !isEndpointUnavailableError(err)) {
+      throw err;
+    }
     return undefined;
   }
 }
@@ -82,8 +112,8 @@ function registerTokensSnapshot(server: McpServer, client: GriphookClient) {
 
       if (includeBalances) {
         optionalTasks.push(
-          safeFetch(client, "get", "/tokens/balance").then((data) => { if (data) result.balances = data; }),
-          safeFetch(client, "get", "/vouchers/balance").then((data) => { if (data) result.voucherBalance = data; }),
+          safeFetch(client, "get", "/tokens/balance").then((data) => { if (data !== undefined) result.balances = data; }),
+          safeFetch(client, "get", "/vouchers/balance").then((data) => { if (data !== undefined) result.voucherBalance = data; }),
         );
       }
 
